@@ -410,6 +410,13 @@
         history = model.fit(x=train_images, y=train_oh_targets, validation_data=(validation_images, validation_oh_targets), batch_size=64, epochs=20, callbacks=[mcp_cb, rlr_cb, ely_cb])
 
 </details>
+
+<details>
+    <summary>8. callback을 이용한 가중치 파일 불러오기</summary>
+        model.load_weights('./callback_files/')
+        model.compile(optimizer=Adam(), loss=CategoricalCrossentropy(), metrics=['acc'])
+</details>
+
 </div>
 
 <hr>
@@ -471,6 +478,68 @@
 -   Classifier에서는 Fully Connected Layer의 지나친 연결로 인해 많은 파라미터가 생성되므로 오히러 과적합이 발생할 수 있다.
 
 -   위의 상황을 대비하기 위해 Dropout을 사용해서 Layer간 연결을 줄일 수 있으며 과적합을 방지할 수 있다. (뉴런을 비활성화 시키는 작업.)
+
+---
+
+### CNN (RGB)
+
+-   RGB 영상이기 때문에 필터의 경우 '3'이 적용된다.
+-   input data 와의 차원을 맞추기 위해 Squeeze 를 사용한다 (<-> Unsqueeze)
+
+---
+
+### CNN Performance
+
+-   CNN 모델을 제작할 때, 다양한 기법을 통해 성능 개선 및 과적합 계산이 가능하다.
+
+#### Weight Initialization, 가중치 초기화
+
+-   처음 가중치를 어떻게 줄 것인지를 정하는 방법이며, 처음 가중치를 어떻게 설정하느냐에 따라 모델의 성능이 크게 달라질 수 있다.
+
+> 1. 사비에르 글로로트 초기화
+>
+> -   고정된 표준편차를 사용하지 않고, 이전 층의 노드 수에 맞게 현재 층의 가중치를 초기화한다.
+> -   층마다 노드 개수를 다르게 설정하더라도 이에 맞게 가중치가 초기화되기 때문에 고정된 표준편차를 사용하는 것보다 이상치에 민감하지 않다.
+> -   활성화 함수가 ReLU일 때, 층이 지날 수록 활성화 값이 고르지 못하게 되는 문제가 생겨서, **출력층에서만 사용**한다.
+
+> 2. 카이밍 히 초기화
+>
+> -   고정된 표준편차를 사용하지 않고, 이전 층의 노드 수에 맞게 현재 층의 가중치를 초기화한다.
+> -   층마다 노드 개수를 다르게 설정하더라도 이에 맞게 가중치가 초기화되기 때문에 고정된 표준편차를 사용하는 것보다 이상치에 민감하지 않다.
+> -   활성화 함수가 ReLU일 때, 추천하는 초기화 방법으로서, 층이 깊어지더라도 모든 활성값이 고르게 분포된다.
+
+#### Batch Normalization, 배치 정규화
+
+-   입력 데이터 간에 값의 차이가 발생하면, 가중치의 비중도 달라지기 때문에 층을 통과할 수록 편차가 심해진다.  
+    이를 내부 공변량 이동(Internel Convariant Shift)이라고 한다.
+-   가중치의 값의 미중이 달라지면, 특정 가중치에 중점을 두면서 경사 하강법이 진행되기 때문에,  
+    모든 입력값을 표준 정규화하여 최적의 parameter를 보다 빠르게 학습할 수 있도록 해야한다.
+-   가중치를 초기화할 때 민감도를 감소시키고, 학습 속도를 증가시키며, 모델을 일반화하기 위해서 사용한다.
+
+-   BN은 activation function 앞에 적용하면, weight 값은 평균이 0, 분산이 1인 상태로 정규분포가 된다.
+-   ReLU가 activation으로 적용되면 음수에 해당하는(절반 정도) 부분이 0이 된다.  
+    이러한 문제를 해결하기 위해서 (감마)와 (베타)를 사용해서 음수부분이 모두 0이 되는 것을 막아준다.
+
+#### Batch Size
+
+-   batch size를 작게 하면, 적절한 noise가 생겨서 overfitting을 방지하게 되고, 모델의 성능을 향상시키는 계기가 될 수 있지만, 너무 작아서는 안된다.
+-   batch size를 너무 작게 하는 경우에는 batch당 sample 수가 작아져서 훈련 데이터를 학습하는 데에 부족할 수 있다.
+-   따라서 굉장히 크게 주는 것 보다는 작게 주는 것이 좋으며, 이를 너무 작게 주어서는 안된다.  
+    **논문에 따르면 8보다 크고 32보다 작게 주는 것이 효과적이라고 한다.**
+
+#### Weight Regularization (가중치 규제), Weight Decay (가중치 감소)
+
+-   loss function은 loss 값이 작아지는 방향으로 방향으로 가중치를 update한다.
+-   하지만, loss를 줄이는 데에만 신경쓰게 되면, 특정 가중치가 너무 커지면서 오히려 나쁜 결과를 가져올 수 있다.
+-   기존 가중치에 특정 연산을 수행하여 loss function의 출력 값과 더해주면 loss function의 결과를 어느정도 제어할 수 있게 된다.
+-   보통 파라미터가 많은 Dense Layer에서 많이 사용되고 가중치 규제보다는 loss function에 규제를 걸어 가중치를 감소시키는 원리이다.
+-   kerenlregularizer 파라미터에서 l1, l2을 선택할 수 있다.
+
+---
+
+### 실제 영상 데이터를 train, validation, test 데이터 분리
+
+-   아래 code 6~8 참조
 
 #### <div id="cnn-code">CNN Code</div>
 
@@ -558,4 +627,304 @@
 
 </details>
 
+<details>
+    <summary>Tip.validation_split</summary>
+
+    # compile 진행 시 별도로 validation 데이터를 구분하지 않고 validation_split을 사용할 수 있다.
+
+    model.fit(x=train_iamges, y=train_target, batch_size=8, epochs=10,
+    validation_split=0.2)
+
+</details>
+
+<details>
+    <summary>3. RGB 영상 CNN 모델 생성</summary>
+
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Dense, Flatten, Conv2D, Dropout, MaxPooling2D, Input, Activation
+    from tensorflow.keras.callbacks import Callback
+
+    INPUT_SIZE = 32
+
+    # RGB 영상이기 때문에 최초 3개의 필터를 넣는다.
+    input_tensor = Input(shape=(INPUT_SIZE, INPUT_SIZE, 3))
+
+    # padding default == valid
+    x = Conv2D(filters = 32, kernel_size=5, padding='valid', activation='relu')(input_tensor)
+    x = Conv2D(filters = 32, kernel_size=3, padding='same', activation='relu')(x)
+    x = MaxPooling2D(2)(x)
+
+    x = Conv2D(filters = 64, kernel_size=3, padding='same', activation='relu')(x)
+    x = Conv2D(filters = 64, kernel_size=3, padding='same')(x)
+    # CNN performance 의 배치 정규화 기능을 사용하기 위해 활성함수를 따로 적용한다.
+    x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+
+    x = Conv2D(filters = 128, kernel_size=3, padding='same', activation='relu')(x)
+    x = Conv2D(filters = 128, kernel_size=3, padding='same')(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+
+    x = Flatten(name='classifier_A00_Flatten')(x)
+    x = Dropout(name='classifierA_DropOut01', rate=0.5)(x)
+    x = Dense(300, activation='relu', name='classifierAD01')(x)
+    x = Dropout(name='classifierA_DropOut02', rate=0.5)(x)
+    output = Dense(10, activation='softmax', name='output')(x)
+
+
+    model = Model(inputs = input_tensor, outputs = output)
+    model.summary()
+
+</details>
+
+<details>
+    <summary>4. keras.losses SparseCategoricalCrossentropy(원-핫 인코딩 후 손실함수 확인)</summary>
+
+    from tensorflow.keras.optimizers import Adam
+    # from tensorflow.keras.losses import CategoricalCrossentropy
+    # 내가 원-핫 인코딩을 하지않고 함수 내부적으로 원-핫 인코딩을 시켜준다.
+    from tensorflow.keras.losses import SparseCategoricalCrossentropy
+
+    model.compile(optimizer=Adam(), loss=SparseCategoricalCrossentropy(), metrics = ['acc'])
+
+</details>
+
+<details>
+    <summary>5. CNN Performance 적용 모델(kernel_initializer(가중치 초기화), BatchNormalization(배치 정규화), GlobalAveragePooling2D), kernel_regularizer(가중치 규제)</summary>
+
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Input, Flatten, Dense, Conv2D, MaxPooling2D, Activation, Dropout, GlobalAveragePooling2D, BatchNormalization
+    from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+    from tensorflow.keras.regularizers import l1, l2
+
+    INPUT_SIZE = 32
+
+    input_tensor = Input(shape=(INPUT_SIZE,INPUT_SIZE,3))
+
+    # alpha를 크게 할 수록 Weight값을 작게 만들어서 과적합을 개선할 수 있고,
+    # alpha를 작게 할 수록 Weight의 값이 커지지만, 어느 정도 상쇄하므로 과소적합을 개선할 수 있다.
+    # 가중치 초기화 (카이밍 히 초기화(he_normal))
+    x = Conv2D(filters=64, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(input_tensor)
+    # 배치 정규화
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters=64, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+
+    x = Conv2D(filters=128, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters=128, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+
+    x = Conv2D(filters=256, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters=256, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+
+    x = GlobalAveragePooling2D()(x)
+    x = Dropout(rate=0.5)(x)
+    x = Dense(300, activation='relu', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    # 가중치 초기화 (사비에르 글로로트 초기화 (glorot_normal))
+    x = Dropout(rate=0.5)(x)
+    output = Dense(10, activation='softmax', kernel_initializer='glorot_normal')(x)
+
+    model = Model(inputs= input_tensor, outputs = output)
+    model.summary()
+
+</details>
+
+<details>
+    <summary>6. ⭐️ (실제 이미지)동물 이미지 영상 train, val, test 구분(MAC, Window)</summary>
+
+    # 사전에 정의된 명칭이 있기 때문에 해당 파일을 불로오는 메소드
+    with open('../d_cnn/datasets/animals/translate.py') as f:
+        content = f.readline().strip()
+        # print(content)
+        # 문자열 안에 있는 딕셔너리를 정상적으로 가져오기 위한 메소드 eval
+        contents1 = eval(content[content.index("{"):content.index("}") + 1])
+
+        # key, value가 뒤집어져 있는 상태이기 때문에 딕셔너리의 items를 가져와서 key:value 반전
+        contents2 = {v: k for k, v in contents1.items()}
+
+    print(contents1, contents2, sep='\n\n')
+
+---
+
+    from glob import glob
+    import os
+
+    root = '../d_cnn/datasets/animals/original/'
+
+    # glob 함수의 경우 파일명을 리스트 형식으로 반환하는 함수.
+    # os의 root 경로에 있는 모든 파일명을 리스트 형식으로 반환하여 리스트 연결.
+    directories = glob(os.path.join(root, '*'))
+    print(directories)
+
+    for directory in directories:
+        # 플랫폼 독립적으로 디렉토리 이름 추출
+        # basname (리눅스에서 파일명이나 확장자를 추출하기 위한 명령어)
+        old_name = os.path.basename(directory)
+
+        # 해당 예외처리는 translate.py 항목에 key, value가 중복으로 되어 있어 작성
+        try:
+            new_name = contents1[old_name]
+        except KeyError:
+            new_name = contents2.get(old_name, old_name)  # old_name이 contents2에 없으면 그대로 유지
+        new_directory = os.path.join(root, new_name)
+        os.rename(directory, new_directory)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    <!-- window 입니다 -->
+    from glob import glob
+    import os
+
+    root = './datasets/animals/original/'
+
+    directories = glob(os.path.join(root, '*'))
+
+    for directory in directories:
+    # 윈도우의 경우 파일명 앞이 ₩ 로 존재하기 때문에 \\ 를 통하여 해당 파일명을 가져와야 합니다.
+        try:
+            os.rename(directory, os.path.join(root, contents1[directory[directory.rindex('\\') + 1:]]))
+        except KeyError as e:
+            os.rename(directory, os.path.join(root, contents2[directory[directory.rindex('\\') + 1:]]))
+
+---
+
+    root = '../d_cnn/datasets/animals/original/'
+
+    # 해당 경로에 있는 전체 경로를 변수에 저장
+    directories = glob(os.path.join(root, '*'))
+    directory_names = []
+
+    # 반복을 이용한 해당 디렉토리의 파일명을 추출하여 리스트에 저장
+    for directory in directories:
+        directory_names.append(os.path.basename(directory))
+
+    print(directory_names)
+
+---
+
+    root = '../d_cnn/datasets/animals/original/'
+
+    for name in directory_names:
+        for i, file_name in enumerate(os.listdir(os.path.join(root, name))):
+            old_file = os.path.join(root + name + '/', file_name)
+            new_file = os.path.join(root + name + '/', name + str(i + 1) + '.png')
+
+            # 기존에 있던 파일명을 해당 root 디렉토리의 이름으로 변경 후 뒤에 반복 시 증가되는 숫자 입력
+            os.rename(old_file, new_file)
+
+---
+
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+    # ImageDataGenerator 인스턴스를 생성
+    # 모든 이미지의 픽셀값을 1/255 로 나누어 0과 1사이의 값으로 변환 후 image_data_generator 생성
+    image_data_generator = ImageDataGenerator(rescale=1./255)
+
+    # flow_from_directory 메소드를 사용하여 디렉토리에서 이미지 데이터를 로드하고 전처리합니다.
+    # flow_from_directory는 ImageDataGenerator의 메소드로 디렉토리 구조에서 이미지 데이터를 로드하고
+    # 실시간으로 증강 및 전처리 하는데 사용
+    generator = image_data_generator.flow_from_directory(
+        root,                 # 이미지가 저장된 디렉토리의 경로
+        target_size=(150, 150),  # 모든 이미지를 (150, 150) 크기로 조정합니다.
+        batch_size=32,           # 배치 크기를 32로 설정합니다.
+        class_mode='categorical' # 클래스 모드를 'categorical'로 설정하여 다중 클래스 분류를 수행합니다.
+    )
+
+    # 생성된 클래스 인덱스를 출력합니다.
+    # 디렉토리 구조에서 발견된 클래스의 이름과 인덱스를 매핑한 딕셔너리 반환
+    print(generator.class_indices)
+
+---
+
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
+
+    # flow_from_directory를 이용한 메소드로 해당 파일을 직접 로드하여 경로와 category를 불러옵니다.
+    a_df = pd.DataFrame({'file_paths': generator.filepaths, 'targets': generator.classes})
+    a_df
+
+---
+
+    # train, validation, test 데이터 분리
+    X_train, X_test, y_train, y_test =\
+    train_test_split(a_df.file_paths, a_df.targets, stratify=a_df.targets, test_size=0.2, random_state=124)
+
+    print(y_train.value_counts())
+    print(y_test.value_counts())
+
+    X_train, X_val, y_train, y_val = \
+    train_test_split(X_train, y_train, stratify=y_train, test_size=0.2, random_state=124)
+
+    print(y_train.value_counts())
+    print(y_val.value_counts())
+
+---
+
+    # 기존 1개의 폴더에 있는 이미지들을 train, validation, test 영상으로 디렉토리 나눠서 copy
+    import shutil
+
+    root = '../d_cnn/datasets/animals/'
+
+    for file_path in X_train:
+        # animal_dir을 경로 구분자로 분할하여 추출
+        # 파일 경로에서 directory 를 추출하려면 dirname 명령어를 사용
+        animal_dir = file_path[len(os.path.join(root, 'original')) + 1:file_path.rindex('/')]
+        destination = os.path.join(root, 'train', animal_dir)
+
+        # destination 디렉토리가 존재하지 않으면 생성
+        if not os.path.exists(destination):
+            os.makedirs(destination)
+
+        # 파일을 destination 디렉토리로 복사
+        shutil.copy2(file_path, destination)
+
+---
+
+    import shutil
+
+    root = '../d_cnn/datasets/animals/'
+
+    for file_path in X_val:
+        # animal_dir을 경로 구분자로 분할하여 추출
+        animal_dir = file_path[len(os.path.join(root, 'original')) + 1:file_path.rindex('/')]
+        destination = os.path.join(root, 'validation', animal_dir)
+
+        # destination 디렉토리가 존재하지 않으면 생성
+        if not os.path.exists(destination):
+            os.makedirs(destination)
+
+        # 파일을 destination 디렉토리로 복사
+        shutil.copy2(file_path, destination)
+
+---
+
+    root = '../d_cnn/datasets/animals/'
+
+    for file_path in X_test:
+        # animal_dir을 경로 구분자로 분할하여 추출
+        animal_dir = file_path[len(os.path.join(root, 'original')) + 1:file_path.rindex('/')]
+        destination = os.path.join(root, 'test', animal_dir)
+
+        # destination 디렉토리가 존재하지 않으면 생성
+        if not os.path.exists(destination):
+            os.makedirs(destination)
+
+        # 파일을 destination 디렉토리로 복사
+        shutil.copy2(file_path, destination)
+
+</details>
 </div>
