@@ -535,13 +535,89 @@
 -   보통 파라미터가 많은 Dense Layer에서 많이 사용되고 가중치 규제보다는 loss function에 규제를 걸어 가중치를 감소시키는 원리이다.
 -   kerenlregularizer 파라미터에서 l1, l2을 선택할 수 있다.
 
----
-
 ### 실제 영상 데이터를 train, validation, test 데이터 분리
 
--   아래 code 6~8 참조
+-   아래 code 6 참조
 
-#### <div id="cnn-code">CNN Code</div>
+---
+
+### Data Augmentation, 데이터 증강
+
+-   이미지의 종류와 개수가 적으면, CNN 모델의 성능이 떨어질 수 밖에 없다. 또한 몇 안되는 이미지로 훈련시키면 과적합이 발생한다.
+-   CNN 모델의 성능을 높이고 과적합을 개선하기 위해서는 이미지의 종류와 개수가 많아야 한다. 즉, 데이터 양을 늘려야 한다.
+-   이미지 데이터는 학습 데이터를 수집하여 양을 늘리기 쉽지 않기 때문에, 원본 이미지를 변형 시켜서 양을 늘릴 수 있다.
+-   Data Augmentation을 통해 원본 이미지에 다양한 변형을 주어서 학습 이미지 데이터를 늘리는 것과 유사한 효과를 볼 수 있다.
+-   원본 학습 이미지의 개수를 늘리는 것이 아닌 매 학습 마다 개별 원본 이미지를 변형해서 학습을 수행한다.
+
+#### 공간 레벨 변형
+
+-   좌우 또는 상하 반전, 특정 영역만큼 확대, 축소 회전 등으로 변형시킨다.
+
+#### 픽셀 레벨 변형
+
+-   밝기, 대비, 채털 변경 등등
+
+#### 🚩정리
+
+##### 기본적으로 많이 사용되는 변환은 아래와 같다. (필요시 추가 필요 항목을 찾아 적용 할 것.)
+
+-   Vertical
+-   Horizontal
+-   ShiftScaleRotation
+-   RandomCrop, CenterCrop, RandomBrightnessContrast
+-   ColorJitter
+-   CLAHE, Blur, CoarseDropout
+
+---
+
+### ⭐️ Pretrained_Model
+
+-   모델을 처음부터 학습하면 오랜 시간 학습을 해야한다. 이를 위해 대규모 학습 데이터 기반으로 사전에 훈련된 모델을 활용한다.
+-   대규모 데이터 세트에서 훈련되고 저장된 네트워크로서, 일반적으로 대규모 이미지 분류 작업에서 훈련된 것을 뜻한다.
+-   입력 이미지는 대부분 244 \* 244 크기이며, 모델 별로 차이가 있다.
+-   자동차나 고양이 등을 포함한 1000개의 클래스, 총 1400만개의 이미지로 구성된 ImageNet 데이터 세트로 사전 훈련되었다.
+
+> #### ImageNet Large Scale Recognition Challenge (ILSVRC)
+>
+> 2017년까지 대회가 주최되었으며, 이후에도 좋은 모델들이 등장했고, 앞으로도 계속 등장할 것이다.  
+> 메이저 플레이어들(구글, 마이크로소프트)이 만들어놓은 모델들도 등장했다.
+
+#### 1. VGGNet (옥스포드 대학의 연구팀)
+
+-   2014년 ILSVRC에서 GoogleNet이 1위, VGG는 2위를 차지했다.
+-   GoogleNet의 오류율은 6.7%, VGG의 오류율은 7.3%이고, 0.6%차이 밖에 나지 않았다.
+-   간결하고 단순한 아키텍쳐임에도 불구하고 1위인 GoogleNet과 큰 차이 없는 성능을 보여서 주목을 받게 되었다.
+-   네트워크 깊이에 따른 모델 성능의 영향에 대한 연구에 집중하여 만들어진 네트워크이다.
+-   신경망을 깊게 만들 수록 성능이 좋아짐을 확인하였지만, 커널 사이즈가 클 수록 이미지 사이즈가 급격하게 축소되기 때문에, 더 깊은 층을 만들기 어렵고 파라미터 개수와 연산량도 더 많이 필요하다는 것을 알았다.
+-   **따라서 kernel 크기를 3x3으로 단일화했으며, Padding, Strides 값을 조정하여 단순한 네트워크로 구성되었다.**
+-   2개의 3x3 커널은 5x5 커널과 동일한 크기의 feature map을 생성하기 때문에 3x3 커널로 연산하면, 층을 더 만들 수 있게 된다.
+
+#### 2. Inception Network (GoogleNet)
+
+-   여러 사이즈의 커널들을 한꺼번에 결합하는 방식을 사용하며, 이를 묶어서 inception module이라고 한다.
+-   여러 개의 inception module을 연속적으로 이어서 구성하고 여러 사이즈의 필터들이 서로 다른 공간 기반으로 feature들을 추출한다.
+-   inception module을 결합하면서 보다 풍부한 feature Extractor Layer를 구성하게 된다.
+-   하지만 여러 사이즈의 커널을 결합하게 되면, Convolution 연산을 수행할 때 파라미터 수가 증가되고 과적합으로 이어진다.
+-   이를 극복하고자 연산을 수행하기 전에 1x1 Convolution을 적용해서 파라미터 수를 획기적으로 감소시킨다. (1x1 으로 설정하고 채널 수를 조정할 수 있다.)
+-   1x1 Convolution을 적용하면 입력 데이터의 특징을 함축적으로 표현하면서 파라미터 수를 줄이는 차원 축소 역할을 수행하게 된다.
+
+##### 1X1 Convolution
+
+-   행과 열의 크기 변환 없이 Channel의 수를 조절할 수 있고, weight 및 비선형성을 추가하는 역할을 한다.
+-   행과 열의 사이즈를 줄이고 싶다면, Pooling을 사용하면 되고, 채널 수만 줄이고 싶다면 1X1 Convolution을 사용하면 된다.
+
+#### 3. ResNet (마이크로소프트)
+
+-   VGG 이후 더 깊은 Network에 대한 연구가 증가했지만, Network 깊이가 깊어질 수록 오히려 accuracy가 떨어지는 문제가 있었다.
+-   층이 깊어질 수록 계속해서 기울기가 0에 가까워지는 Gradient vanishing이 발생하기 때문이다.
+
+-   이를 해결하고자 층을 만들되, Input 데이터와 결과가 동일하게 나올 수 있도록 하는 층을 연구하기 시작했다.  
+    함수로 나타내면 H(x) = x이다.
+-   하지만 활성화 함수를 통과한 값을 기존 Input 데이터와 동일하게 만드는 것은 굉장히 복잡했기 때문에  
+    H(x) = F(x) + x 즉, F(x)를 0으로 만드는 F(x)에 포커스를 하게 된다.
+-   input은 x이고, Model인 F(x)라는 일련의 과정을 거치면서 자신인 x가 더해져서 output으로 F(x) + x가 나오는 구조가 된다.
+
+## <div id="Code Advanced">Code Advanced</div>
 
 <details>
     <summary>1. Funtional API 를 이용한 CNN model 구성.</summary>
@@ -704,7 +780,10 @@
     # alpha를 크게 할 수록 Weight값을 작게 만들어서 과적합을 개선할 수 있고,
     # alpha를 작게 할 수록 Weight의 값이 커지지만, 어느 정도 상쇄하므로 과소적합을 개선할 수 있다.
     # 가중치 초기화 (카이밍 히 초기화(he_normal))
-    x = Conv2D(filters=64, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(input_tensor)
+
+    **
+    input 이후 최초 층에서는 별도의 규제를 안주는 것을 권장.
+    x = Conv2D(filters=64, kernel_size=3, padding='same'(input_tensor)
     # 배치 정규화
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
@@ -714,20 +793,20 @@
     x = Activation('relu')(x)
     x = MaxPooling2D(2)(x)
 
-    x = Conv2D(filters=128, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = Conv2D(filters=128, kernel_size=3, padding='same' kernel_initializer='he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(filters=128, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = Conv2D(filters=128, kernel_size=3, padding='same', kernel_initializer='he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(2)(x)
 
-    x = Conv2D(filters=256, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = Conv2D(filters=256, kernel_size=3, padding='same', kernel_initializer='he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(filters=256, kernel_size=3, padding='same', kernel_regularizer=l2(1e-5), kernel_initializer='he_normal')(x)
+    x = Conv2D(filters=256, kernel_size=3, padding='same', kernel_initializer='he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(2)(x)
@@ -925,6 +1004,641 @@
 
         # 파일을 destination 디렉토리로 복사
         shutil.copy2(file_path, destination)
+
+</details>
+
+<details>
+    <summary>7. Data augmentation, 데이터 증강 (ImageDataGenerator),albumentations 리이브러리 사용법 포함.</summary>
+
+    import numpy as np
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+    # Horizontal Filp: 좌우반전 적용
+    # 적용하더라도 반드시 변환되지 않는다. 특정 확률로 랜덤하게 적용하기 떄문이다.
+    idg = ImageDataGenerator(horizontal_flip=True)
+
+    # 이미지의 차원을 맞추기 위해 하나 증가시킨다. (4차원일 떄 => (배치사이즈, w, h, c채널))
+    # ImageDataGenerator는 배치 사이즈를 포함한 4차원으로 연산되기 때문에
+    # 기존 image를 한 차원 증가시켜 준다
+    image_batch = np.expand_dims(image, axis=0)
+
+    # 4차원 이미지(배치 사이즈 포함)를 fit에 전달한다.
+    idg.fit(image_batch)
+    # fit한 뒤 flow에 다시 넣어준다.
+    data_generator = idg.flow(image_batch)
+    # 적용된 이미지를 next로 가져온다.
+    aug_image_batch = next(data_generator)
+    # 이미지를 시각화하기 위해서 한 차원 감소시킨 3차원으로 변경해준다.
+    aug_image = np.squeeze(aug_image_batch)
+
+    # 실수에서 정수로 변경 후 출력해준다.
+    show_image(aug_image.astype('int'))
+
+
+    예시) 실제로는 더 검색해서 필요한 것 찾아서 할 것.(channel_chift 같은 조건도 있음)
+    idg = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    brightness_range=(0.7, 1.3),
+    horizontal_flip=True,
+    vertical_flip=True,
+    rescale=1./255
+
+)
+
+    # 픽셀 단위로 되어 있기 때문에 육안으로 구분이 안되도 정상적으로 확인되는 것.
+    show_aug_image_batch(image, idg)
+
+---
+
+    # 원본 이미지의 영상을 보여주는 함수
+    def show_images(images, targets, ncols=4, title=None):
+        figsize, axs = plt.subplots(figsize=(ncols * 5, 4), nrows=1, ncols=ncols)
+        for i in range(ncols):
+            axs[i].imshow(images[i])
+            axs[i].set_title(targets[i])
+
+    원본 이미지와 변경된 이미지를 보여주기 위한 함수
+    def repeat_aug(original_image=None, target=None, aug=None, ncols=2):
+        image_list = [original_image]
+        target_list = ['Original']
+
+        aug_image = aug(image=original_image)['image']
+        image_list.append(aug_image)
+        target_list.append(target)
+
+        show_images(image_list, target_list, ncols=ncols)
+
+---
+
+    # conda install -c -conda-forge albumentations
+    # HorizontalFlip => p: 확률
+
+    import albumentations as A
+    aug = A.HorizontalFlip(p=0.8)
+
+    repeat_aug(original_image=image, target='HorizontalFlip', aug=aug)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    aug = A.VerticalFlip(p=0.1)
+
+    repeat_aug(original_image=image, target='VerticalFlip', aug=aug)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # limit=90 일 경우 -90 ~ 90 범위를 갖는다.
+    # aug = A.Rotate(p=0.5, limit=90, border_mode=cv2.BORDER_REFLECT) # 반사
+    # aug = A.Rotate(p=0.5, limit=90, border_mode=cv2.BORDER_WRAP) # 픽셀 가리기
+    aug = A.Rotate(p=0.5, limit=90, border_mode=cv2.BORDER_CONSTANT) # 검은색으로 가리기
+
+    repeat_aug(original_image=image, target='Rotate', aug=aug)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    aug = A.RandomRotate90(p=1)
+
+    repeat_aug(original_image=image, target='RandomRotate90', aug=aug)
+
+    # shift와 scale(zoom), rotate를 함께 또는 별개로 적용, 별개로 적용할 경우 나머지 0으로 설정
+    aug = A.ShiftScaleRotate(shift_limit=0.5, scale_limit=(-0.8, 1.5), rotate_limit=90, p=1, border_mode=cv2.BORDER_WRAP)
+
+    repeat_aug(original_image=image, target='ShiftScaleRotate', aug=aug)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # 여러개의 augmentation 을 묶어서 사용
+    aug = A.Compose([
+        A.VerticalFlip(p=0.5),
+        A.HorizontalFlip(p=0.5)
+    ])
+
+    repeat_aug(original_image=image, target='Compose', aug=aug, ncols =5)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # 특정 영역을 잘라낸 후 원본 사이즈로 다시 Resize 하지 않은
+    # x: width, y:height, max값은 이미지 크기로 설정해야한다.
+    # 범위가 아닌 지정한 부분을 제외한 나머지 부분을 가져온다.
+
+    aug = A.Crop(x_min= 100, y_min= 100 , x_max=300, y_max=225, p=1)
+    repeat_aug(original_image=image, target='Crop', aug=aug, ncols =5)
+
+    aug(image=image)['image'].shape
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    aug = A.Compose([
+        A.Crop(x_min= 100, y_min= 100 , x_max=300, y_max=225, p=1),
+        A.Resize(250, 250)
+    ])
+
+    repeat_aug(original_image=image, target='Crop', aug=aug, ncols =2)
+    aug(image=image)['image'].shape
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    aug =A.CenterCrop(height=100, width=200, p=1)
+
+    repeat_aug(original_image=image, target='CenterCrop', aug=aug)
+    aug(image=image)['image'].shape
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # crop 을 사용 시 resize 를 이용하여 원하는 이미지 사이즈로 변경 한 후 사용 할 것.
+    aug = A.Compose([
+        A.CenterCrop(height=100, width=200, p=1),
+        A.Resize(250, 250)
+    ])
+
+    repeat_aug(original_image=image, target='CenterCrop', aug=aug)
+    aug(image=image)['image'].shape
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # 특정 영역을 scale 범위만큼 잘라낸 후, 전달할 width와 height 크기로 Resize한다.
+    # 원본 이미지가 100 X 100 일 경우 scale(0.1, 0.5)를 적용하면,
+    # 10 ~ 50% 범위의 랜덤한 영역을 잘라낸 후 resize 해준다.
+    aug = A.RandomResizedCrop(height=250, width=250, scale=(0.2, 0.7), p=1)
+
+    repeat_aug(original_image=image, target='RandomResizedCrop', aug=aug, ncols=5)
+    aug(image=image)['image'].shape
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 밝기, 대비
+    # 0.2 == (-0.2, 0.2)
+    # 개별 작업 진행 시, 나머지는 0을 전달한다.
+
+    aug = A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=1)
+
+    repeat_aug(original_image=image, target='RandomBrightnessContrast', aug=aug, ncols=5)
+    aug(image=image)['image'].shape
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 색상, 채도, 명도
+    # hue_shift_limit
+    # sat_shift_limit
+    # val_shift_limit
+
+    aug = A.HueSaturationValue(p=1)
+
+    repeat_aug(original_image=image, target='HueSaturationValue', aug=aug, ncols=5)
+
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # 밝기, 대비, 채도, 색상
+    aug = A.ColorJitter(p=1)
+    repeat_aug(original_image=image, target='ColorJitter', aug=aug, ncols=5)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 채널 위치 변경
+    aug = A.ChannelShuffle(p=1)
+
+    repeat_aug(original_image=image, target='ColorJitter', aug=aug, ncols=4)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 가우시안 분포(정규 분포)를 사용해서 Noise를 생성한다.
+    aug = A.GaussNoise(p=1, var_limit=(400, 900))
+
+    repeat_aug(original_image=image, target='GaussNoise', aug=aug, ncols=4)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 명암대비가 선명한 정도 조정 / 어두운 이미지가 많을 때 효과적
+    aug = A.CLAHE(p=1, clip_limit=4)
+
+    repeat_aug(original_image=image, target='CLAHE', aug=aug, ncols=4)
+
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 흐려지게 하기 / 블러처리
+    aug = A.Blur(p=1, blur_limit=(3,12))
+
+    repeat_aug(original_image=image, target='Blur', aug=aug, ncols=4)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    aug = A.Compose([
+        A.CenterCrop(height=100, width=100, p=0.5),
+        A.HorizontalFlip(p=0.5),
+        A.RandomBrightnessContrast(p=0.5),
+        A.Resize(225,300, p=1)
+    ], p=0.5)
+
+    repeat_aug(original_image=image, target='Compose', aug=aug, ncols=4)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 검은색 정사각형을 랜덤하게 배치하여 noise를 발생시킨다.
+    aug = A.CoarseDropout(max_holes=100, max_height=10, max_width=10, p=0.5)
+
+    repeat_aug(original_image=image, target='CoarseDropout', aug=aug, ncols=4)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+    # 여러 개중 한개만 적용되는 경우
+    aug = A.OneOf([
+        A.CenterCrop(height=100, width=100, p=0.5),
+        A.HorizontalFlip(p=0.5),
+        A.RandomBrightnessContrast(p=0.5),
+        A.Resize(225,300, p=1)
+    ], p=0.5)
+
+    repeat_aug(original_image=image, target='OneOf', aug=aug, ncols=4)
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    aug = A.Compose([
+        A.CenterCrop(height=100, width=100, p=0.5),
+        A.HorizontalFlip(p=0.5),
+        A.Rotate(limit=(45, 90), p=1, border_mode=cv2.BORDER_CONSTANT),
+        A.OneOf([
+            A.Blur(p=0.3, blur_limit=(0.3, 0.5)),
+            A.CLAHE(p=0.3)
+        ]),
+        A.Resize(225,300, p=1)
+    ], p=0.5)
+
+    repeat_aug(original_image=image, target='Compose', aug=aug, ncols=4)
+
+    import albumentations as A
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++
+
+    def transform(image):
+        aug = A.Compose([
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.5),
+            A.OneOf([
+                A.ColorJitter(p=0.5),
+                A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5)
+            ], p=1)
+        ], p=0.5)
+
+        return aug(image=image)['image']
+
+    idg = ImageDataGenerator(preprocessing_function=transform, rescale=1./255)
+
+</details>
+
+<details>
+    <summary>8. Pretrained Mode (VGG)</summary>
+
+        from tensorflow.keras.models import Model
+        from tensorflow.keras.layers import Input, Dense , Conv2D , Dropout , Flatten , Activation, MaxPooling2D , GlobalAveragePooling2D
+        from tensorflow.keras.optimizers import Adam
+        from tensorflow.keras.layers import BatchNormalization
+        from tensorflow.keras.callbacks import ReduceLROnPlateau , EarlyStopping , ModelCheckpoint
+
+        def vggnet(input_shape=(224, 224, 3), n_classes=10):
+            input_tensor = Input(shape=input_shape)
+
+            # Block 1
+            x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1')(input_tensor)
+            x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv2')(x)
+            x = MaxPooling2D((2, 2), strides=1, name='block1_pool')(x)
+
+            # Block 2
+            x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv1')(x)
+            x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv2')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
+
+            # Block 3
+            x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv1')(x)
+            x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv2')(x)
+            x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv3')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
+
+            # Block 4
+            x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv1')(x)
+            x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv2')(x)
+            x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv3')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
+
+            # Block 5
+            x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv1')(x)
+            x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv2')(x)
+            x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv3')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(x)
+
+            x = GlobalAveragePooling2D()(x)
+            x = Dropout(0.5)(x)
+            x = Dense(units = 120, activation = 'relu')(x)
+            x = Dropout(0.5)(x)
+
+            output = Dense(units = n_classes, activation = 'softmax')(x)
+
+            model = Model(inputs=input_tensor, outputs=output)
+            model.summary()
+
+            return model
+
+</details>
+
+<details>
+    <summary>9. Pretrained Mode (Inception)</summary>
+
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Input, Dense , Conv2D , Dropout , Flatten , Activation, MaxPooling2D , GlobalAveragePooling2D
+    from tensorflow.keras.optimizers import Adam , RMSprop
+    from tensorflow.keras.layers import BatchNormalization
+    from tensorflow.keras.callbacks import ReduceLROnPlateau , EarlyStopping , ModelCheckpoint , LearningRateScheduler
+
+    from tensorflow.keras.layers import Concatenate
+
+    def inception_module(x, filters_1x1, filters_3x3_reduce, filters_3x3, filters_5x5_reduce, filters_5x5,filters_pool_reduce, name=None):
+
+        # 첫번째 1x1 Conv
+        conv_1x1 = Conv2D(filters_1x1, (1, 1), padding='same', activation='relu')(x)
+
+        # 3x3 적용 전 1x1 conv
+        conv_3x3 = Conv2D(filters_3x3_reduce, (1, 1), padding='same', activation='relu')(x)
+        conv_3x3 = Conv2D(filters_3x3, (3, 3), padding='same', activation='relu')(conv_3x3)
+
+        # 5x5 적용 전 1x1 Conv
+        conv_5x5 = Conv2D(filters_5x5_reduce, (1, 1), padding='same', activation='relu')(x)
+        conv_5x5 = Conv2D(filters_5x5, (5, 5), padding='same', activation='relu')(conv_5x5)
+
+        pool = MaxPooling2D((3, 3), strides=(1, 1), padding='same')(x)
+        pool = Conv2D(filters_pool_reduce, (1, 1), padding='same', activation='relu')(pool)
+
+        # 1x1 결과, 3x3 결과, 5x5 결과, pool이후 1x1 결과 feature map을 채널(axis=-1) 기준으로 Concat 적용.
+        # Concatenate는 사이즈는 그대로이고, 각 채널 수를 더한다. 즉, 그대로 뒤에 연결된다.
+        output = Concatenate(axis=-1, name=name)([conv_1x1, conv_3x3, conv_5x5, pool])
+        return output
+
+    ---
+    def googlenet(in_shape=(224, 224, 3), n_classes=10):
+        input_tensor = Input(in_shape)
+
+        x = Conv2D(64, (7, 7), padding='same', strides=(2, 2), activation='relu', name='conv_1_7x7_2')(input_tensor)
+        x = MaxPooling2D((3, 3), padding='same', strides=(2, 2), name='max_pool_1_3x3_2')(x)
+        x = Conv2D(64, (1, 1), padding='same', strides=(1, 1), activation='relu', name='conv_2a_3x3_1')(x)
+        x = Conv2D(192, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv_2b_3x3_1')(x)
+        x = MaxPooling2D((3, 3), padding='same', strides=(2, 2), name='max_pool_2_3x3_2')(x)
+
+        # 첫번째 inception 모듈
+        x = inception_module(x, filters_1x1=64,
+                            filters_3x3_reduce=96,
+                            filters_3x3=128,
+                            filters_5x5_reduce=16,
+                            filters_5x5=32,
+                            filters_pool_reduce=32,
+                            name='inception_3a')
+        # 두번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=128,
+                            filters_3x3_reduce=128,
+                            filters_3x3=192,
+                            filters_5x5_reduce=32,
+                            filters_5x5=96,
+                            filters_pool_reduce=64,
+                            name='inception_3b')
+
+        x = MaxPooling2D((3, 3), padding='same', strides=(2, 2), name='max_pool_3_3x3_2')(x)
+
+        # 세번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=192,
+                            filters_3x3_reduce=96,
+                            filters_3x3=208,
+                            filters_5x5_reduce=16,
+                            filters_5x5=48,
+                            filters_pool_reduce=64,
+                            name='inception_4a')
+        # 네번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=160,
+                            filters_3x3_reduce=112,
+                            filters_3x3=224,
+                            filters_5x5_reduce=24,
+                            filters_5x5=64,
+                            filters_pool_reduce=64,
+                            name='inception_4b')
+
+        # 다섯번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=128,
+                            filters_3x3_reduce=128,
+                            filters_3x3=256,
+                            filters_5x5_reduce=24,
+                            filters_5x5=64,
+                            filters_pool_reduce=64,
+                            name='inception_4c')
+        # 여섯번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=112,
+                            filters_3x3_reduce=144,
+                            filters_3x3=288,
+                            filters_5x5_reduce=32,
+                            filters_5x5=64,
+                            filters_pool_reduce=64,
+                            name='inception_4d')
+        # 일곱번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=256,
+                            filters_3x3_reduce=160,
+                            filters_3x3=320,
+                            filters_5x5_reduce=32,
+                            filters_5x5=128,
+                            filters_pool_reduce=128,
+                            name='inception_4e')
+
+        x = MaxPooling2D((3, 3), padding='same', strides=(2, 2), name='max_pool_4_3x3_2')(x)
+        # 여덟번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=256,
+                            filters_3x3_reduce=160,
+                            filters_3x3=320,
+                            filters_5x5_reduce=32,
+                            filters_5x5=128,
+                            filters_pool_reduce=128,
+                            name='inception_5a')
+        # 아홉번째 inception 모듈
+        x = inception_module(x,
+                            filters_1x1=384,
+                            filters_3x3_reduce=192,
+                            filters_3x3=384,
+                            filters_5x5_reduce=48,
+                            filters_5x5=128,
+                            filters_pool_reduce=128,
+                            name='inception_5b')
+
+        x = GlobalAveragePooling2D(name='avg_pool_5_3x3_1')(x)
+        x = Dropout(0.5)(x)
+        output = Dense(n_classes, activation='softmax', name='output')(x)
+
+        model = Model(inputs=input_tensor, outputs=output)
+        model.summary()
+
+        return model
+
+</details>
+
+<details>
+    <summary>10. Pretrained Mode (ResNet)</summary>
+
+    from tensorflow.keras.layers import ZeroPadding2D, MaxPooling2D
+
+    def do_first_conv(input_tensor):
+        # 7x7 Conv 연산 수행하여 feature map 생성하되 input_tensor 크기(image 크기)의 절반으로 생성.  filter 개수는 64개
+        # 224x224 를 input을 7x7 conv, strides=2로 112x112 출력하기 위해 Zero padding 적용.
+        x = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(input_tensor)
+        x = Conv2D(64, (7, 7), strides=(2, 2), padding='valid', kernel_initializer='he_normal', name='conv')(x)
+        x = BatchNormalization(axis=3, name='bn_conv1')(x)
+        x = Activation('relu')(x)
+        # 다시 feature map 크기를 MaxPooling으로 절반으로 만듬. 56x56으로 출력하기 위해 zero padding 적용.
+        x = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(x)
+        x = MaxPooling2D((3, 3), strides=(2, 2))(x)
+
+        return x
+    ---
+
+    from tensorflow.keras.layers import Conv2D, Dense, BatchNormalization, Activation
+    from tensorflow.keras.layers import add, Add
+
+    # 여러 개의 block을 stage로 구분
+    # block은 동일 stage내에서 identity block을 구분
+    def identity_block(input_tensor, kernel_size, filters, stage, block):
+        # filter1은 첫번째 1x1 filter 개수, filter2는 3x3 filter개수, filter3는 마지막 1x1 filter개수
+        filter1, filter2, filter3 = filters
+        # conv layer와 Batch normalization layer각각에 고유한 이름을 부여하기 위해 설정. 입력받은 stage와 block에 기반하여 이름 부여
+        conv_name_base = 'res' + str(stage) + block + '_branch'
+        bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+        # 이전 layer에 입력 받은 input_tensor(함수인자로 입력받음)를 기반으로 첫번째 1x1 Conv->Batch Norm->Relu 수행.
+        # 첫번째 1x1 Conv에서 Channel Dimension Reduction 수행. filter1은 입력 input_tensor(입력 Feature Map) Channel 차원 개수의 1/4임.
+        x = Conv2D(filters=filter1, kernel_size=(1, 1), kernel_initializer='he_normal', name=conv_name_base+'2a')(input_tensor)
+        # Batch Norm적용. 입력 데이터는 batch 사이즈까지 포함하여 4차원임(batch_size, height, width, channel depth)임
+        # Batch Norm의 axis는 channel depth에 해당하는 axis index인 3을 입력.(무조건 channel이 마지막 차원의 값으로 입력된다고 가정. )
+        x = BatchNormalization(axis=3, name=bn_name_base+'2a')(x)
+        # ReLU Activation 적용.
+        x = Activation('relu')(x)
+
+        # 두번째 3x3 Conv->Batch Norm->ReLU 수행
+        # 3x3이 아닌 다른 kernel size도 구성 가능할 수 있도록 identity_block() 인자로 입력받은 kernel_size 이용.
+        # Conv 수행 출력 사이즈가 변하지 않도록 padding='same'으로 설정. filter 개수는 이전의 1x1 filter개수와 동일.
+        x = Conv2D(filters=filter2, kernel_size=kernel_size, padding='same', kernel_initializer='he_normal', name=conv_name_base+'2b')(x)
+        x = BatchNormalization(axis=3, name=bn_name_base+'2b')(x)
+        x = Activation('relu')(x)
+
+        # 마지막 1x1 Conv->Batch Norm 수행. ReLU를 수행하지 않음에 유의.
+        # filter 크기는 input_tensor channel 차원 개수로 원복
+        x = Conv2D(filters=filter3, kernel_size=(1, 1), kernel_initializer='he_normal', name=conv_name_base+'2c')(x)
+        x = BatchNormalization(axis=3, name=bn_name_base+'2c')(x)
+        # Residual Block 수행 결과와 input_tensor를 합한다.
+        x = Add()([input_tensor, x])
+        # 또는 x = add([x, input_tensor]) 와 같이 구현할 수도 있음.
+
+        # 마지막으로 identity block 내에서 최종 ReLU를 적용
+        x = Activation('relu')(x)
+
+        return x
+
+    ---
+    def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
+        '''
+        함수 입력 인자 설명
+        input_tensor: 입력 tensor
+        middle_kernel_size: 중간에 위치하는 kernel 크기. identity block내에 있는 두개의 conv layer중 1x1 kernel이 아니고, 3x3 kernel임.
+                            3x3 커널 이외에도 5x5 kernel도 지정할 수 있게 구성.
+        filters: 3개 conv layer들의 filter개수를 list 형태로 입력 받음. 첫번째 원소는 첫번째 1x1 filter 개수, 두번째는 3x3 filter 개수,
+                세번째는 마지막 1x1 filter 개수
+        stage: identity block들이 여러개가 결합되므로 이를 구분하기 위해서 설정. 동일한 filter수를 가지는 identity block들을  동일한 stage로 설정.
+        block: 동일 stage내에서 identity block을 구별하기 위한 구분자
+        strides: 입력 feature map의 크기를 절반으로 줄이기 위해서 사용. Default는 2이지만,
+                첫번째 Stage의 첫번째 block에서는 이미 입력 feature map이 max pool로 절반이 줄어있는 상태이므로 다시 줄이지 않기 위해 1을 호출해야함
+        '''
+
+        # filters로 list 형태로 입력된 filter 개수를 각각 filter1, filter2, filter3로 할당.
+        # filter은 첫번째 1x1 filter 개수, filter2는 3x3 filter개수, filter3는 마지막 1x1 filter개수
+        filter1, filter2, filter3 = filters
+        # conv layer와 Batch normalization layer각각에 고유한 이름을 부여하기 위해 설정. 입력받은 stage와 block에 기반하여 이름 부여
+        conv_name_base = 'res' + str(stage) + block + '_branch'
+        bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+        # 이전 layer에 입력 받은 input_tensor(함수인자로 입력받음)를 기반으로 첫번째 1x1 Conv->Batch Norm->Relu 수행.
+        # 입력 feature map 사이즈를 1/2로 줄이기 위해 strides인자를 입력
+        x = Conv2D(filters=filter1, kernel_size=(1, 1), strides=strides, kernel_initializer='he_normal', name=conv_name_base+'2a')(input_tensor)
+        # Batch Norm적용. 입력 데이터는 batch 사이즈까지 포함하여 4차원임(batch_size, height, width, channel depth)임
+        # Batch Norm의 axis는 channel depth에 해당하는 axis index인 3을 입력.(무조건 channel이 마지막 차원의 값으로 입력된다고 가정. )
+        x = BatchNormalization(axis=3, name=bn_name_base+'2a')(x)
+        # ReLU Activation 적용.
+        x = Activation('relu')(x)
+
+        # 두번째 3x3 Conv->Batch Norm->ReLU 수행
+        # 3x3이 아닌 다른 kernel size도 구성 가능할 수 있도록 identity_block() 인자로 입력받은 middle_kernel_size를 이용.
+        # Conv 수행 출력 사이즈가 변하지 않도록 padding='same'으로 설정. filter 개수는 이전의 1x1 filter개수와 동일.
+        x = Conv2D(filters=filter2, kernel_size=kernel_size, padding='same', kernel_initializer='he_normal', name=conv_name_base+'2b')(x)
+        x = BatchNormalization(axis=3, name=bn_name_base+'2b')(x)
+        x = Activation('relu')(x)
+
+        # 마지막 1x1 Conv->Batch Norm 수행. ReLU를 수행하지 않음에 유의.
+        # filter 크기는 input_tensor channel 차원 개수로 원복
+        x = Conv2D(filters=filter3, kernel_size=(1, 1), kernel_initializer='he_normal', name=conv_name_base+'2c')(x)
+        x = BatchNormalization(axis=3, name=bn_name_base+'2c')(x)
+
+        # shortcut을 1x1 conv 수행, filter3가 입력 feature map의 filter 개수
+        shortcut = Conv2D(filter3, (1, 1), strides=strides, kernel_initializer='he_normal', name=conv_name_base+'1')(input_tensor)
+        shortcut = BatchNormalization(axis=3, name=bn_name_base+'1')(shortcut)
+
+        # Residual Block 수행 결과와 1x1 conv가 적용된 shortcut을 합한다.
+        x = add([x, shortcut])
+
+        # 마지막으로 identity block 내에서 최종 ReLU를 적용
+        x = Activation('relu')(x)
+
+        return x
+
+    ---
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Input, Dense , Conv2D , Dropout , Flatten , Activation, MaxPooling2D , GlobalAveragePooling2D
+    from tensorflow.keras.optimizers import Adam , RMSprop
+    from tensorflow.keras.layers import BatchNormalization
+    from tensorflow.keras.callbacks import ReduceLROnPlateau , EarlyStopping , ModelCheckpoint , LearningRateScheduler
+
+    def resnet(in_shape=(224, 224, 3), n_classes=10):
+        input_tensor = Input(shape=in_shape)
+
+        #첫번째 7x7 Conv와 Max Polling 적용.
+        x = do_first_conv(input_tensor)
+
+        # stage 2의 conv_block과 identity block 생성. stage2의 첫번째 conv_block은 strides를 1로 하여 크기를 줄이지 않음.
+        x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
+        x = identity_block(x, 3, [64, 64, 256], stage=2, block='b')
+        x = identity_block(x, 3, [64, 64, 256], stage=2, block='c')
+
+        # stage 3의 conv_block과 identity block 생성. stage3의 첫번째 conv_block은 strides를 2(default)로 하여 크기를 줄임
+        x = conv_block(x, 3, [128, 128, 512], stage=3, block='a')
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='b')
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='c')
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='d')
+
+        # stage 4의 conv_block과 identity block 생성. stage4의 첫번째 conv_block은 strides를 2(default)로 하여 크기를 줄임
+        x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a')
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b')
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c')
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d')
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e')
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f')
+
+        # stage 5의 conv_block과 identity block 생성. stage5의 첫번째 conv_block은 strides를 2(default)로 하여 크기를 줄임
+        x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a')
+        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
+        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
+
+        # classification dense layer와 연결 전 GlobalAveragePooling 수행
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Dropout(rate=0.5)(x)
+        x = Dense(200, activation='relu', name='fc_01')(x)
+        x = Dropout(rate=0.5)(x)
+        output = Dense(n_classes, activation='softmax', name='fc_final')(x)
+
+        model = Model(inputs=input_tensor, outputs=output, name='resnet50')
+        model.summary()
+
+        return model
+
+    ---
+    model = resnet(in_shape=(224, 224, 3), n_classes=10)
 
 </details>
 </div>
