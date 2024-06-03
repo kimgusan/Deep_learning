@@ -617,6 +617,25 @@
     H(x) = F(x) + x 즉, F(x)를 0으로 만드는 F(x)에 포커스를 하게 된다.
 -   input은 x이고, Model인 F(x)라는 일련의 과정을 거치면서 자신인 x가 더해져서 output으로 F(x) + x가 나오는 구조가 된다.
 
+---
+
+### Transfer Learning, 전이 학습
+
+-   이미지 분류 문제를 해결하는 데에 사용했던 모델을 다른 데이터세트 혹은 다른 문제에 적용시켜 해결하는 것을 의미한다.
+-   즉, 사전에 학습된 모델을 다른 작업에 이용하는 것을 의미한다.
+-   Pretrained Model의 Convolutional Base 구조(Conv2D + Pooling)를 그대로 두고 분류기(FC)를 붙여서 학습시킨다.
+
+-   사전 학습된 모델의 용도를 변경하기 위한 층별 미세 조정(fine tuning)은 데이터 세트의 크기와 유사성을 기반으로 고민하여 조정한다.
+-   2018년 FAIR(Facebook AI Research)논문에서 실험을 통해 '전이학습이 학습 속도 면에서 효과가 있다'라는 것을 밝혀냈다.
+
+---
+
+### Scaling Preprocessing
+
+-   0 ~ 1, -1 ~ 1, z-score 변환 중에서 한 개를 선택하여 범위를 축소하는 작업을 의미한다. (x 축을 확인)
+-   Pretrained Model은 주로 tf(tensorflow)와 torch 프레임워크 방식을 사용한다.
+-   tf는 -1 ~ 1, torch는 z-score 변환하는 것이 각 프레임워크의 전통이다.
+
 ## <div id="Code Advanced">Code Advanced</div>
 
 <details>
@@ -1639,6 +1658,166 @@
 
     ---
     model = resnet(in_shape=(224, 224, 3), n_classes=10)
+
+</details>
+
+<details>
+    <summary>11. transfer_learing</summary>
+
+        from tensorflow.keras.models import Model
+        from tensorflow.keras.layers import Input, Dense, Conv2D, Dropout, Flatten, Activation, MaxPooling2D, GlobalAveragePooling2D
+        from tensorflow.keras.applications import VGG16
+
+        def create_model(verbose=False):
+            input_tensor = Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
+
+            # include_top: 분류기 부분을 제외하고 모델을 가져올 수 있기 때문에 개인이 커스텀 가능
+            # weights='imagenet': ImageNet 데이터셋으로 사전 학습된 가중치를 로드
+
+            # model = VGG16(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights='imagenet')
+            model = VGG16(input_tensor=input_tensor, include_top=False, weights='imagenet')
+
+            # 분류기
+            x = model.output
+            x = GlobalAveragePooling2D()(x)
+            x = Dense(50, activation='relu')(x)
+            output = Dense(10, activation='softmax')(x)
+
+            model = Model(inputs=model.input, outputs=output)
+            if verbose:
+                model.summary()
+
+            return model
+
+</details>
+<details>
+    <summary>12. gc.collect()</summary>
+
+        import gc
+        # 불필요한 오브젝트를 지우는 작업
+        gc.collect()
+
+</details>
+
+<details>
+    <summary>13. 특정 이미지에 대하여 훈련된 모델이 어떤 결과를 보여주는 메소드(decode_predictions)</summary>
+
+    import numpy as np
+    from tensorflow.keras.preprocessing.image import load_img, img_to_array
+    from tensorflow.keras.applications.vgg16 import VGG16, decode_predictions
+
+    model = VGG16()
+    image = load_img('./datasets/hamster.jpeg', target_size=(224, 224))
+    image = img_to_array(image)
+
+    image = np.expand_dims(image, axis=0)
+    prediction = model.predict(image)
+    target = decode_predictions(prediction)
+    print(target)
+    print(target[0][0])
+    print(target[0][0][1], f'{np.round(target[0][0][2] * 100, 4)}%')
+
+</details>
+
+<details>
+    <summary>14. scaling_preprocessing & augumentation code</summary>
+
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+    import albumentations as A
+
+    IMAGE_SIZE = 64
+    BATCH_SIZE = 64
+
+    # train데이터에 대하여 데이터 증강이 필요한 경우 해당 함수를 사용
+    def preprocessing_scaling_for_train(image, mode='tf'):
+        aug = A.HorizontalFlip(p=0.5)
+        image = aug(image=image)['image']
+
+        if mode == 'tf': # -1 ~ 1 scale
+            image = image / 127.5
+            image -= 1.
+
+        elif mode == 'torch': # z-score scale
+            image = image / 255.
+            mean = [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225]
+
+            image[:, :, 0] = (image[:, :, 0] - mean[0])/std[0]
+            image[:, :, 1] = (image[:, :, 1] - mean[1])/std[1]
+            image[:, :, 2] = (image[:, :, 2] - mean[2])/std[2]
+
+        return image
+
+    def preprocessing_scaling(image, mode='tf'):
+        if mode == 'tf': # -1 ~ 1 scale
+            image = image / 127.5
+            image -= 1.
+
+        elif mode == 'torch': # z-score scale
+            image = image / 255.
+            mean = [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225]
+
+            image[:, :, 0] = (image[:, :, 0] - mean[0])/std[0]
+            image[:, :, 1] = (image[:, :, 1] - mean[1])/std[1]
+            image[:, :, 2] = (image[:, :, 2] - mean[2])/std[2]
+
+        return image
+
+    train_generator = ImageDataGenerator(preprocessing_function=preprocessing_scaling_for_train)
+    validation_generator = ImageDataGenerator(preprocessing_function=preprocessing_scaling)
+    test_generator = ImageDataGenerator(preprocessing_function=preprocessing_scaling)
+
+    train_flow = train_generator.flow_from_dataframe(dataframe=train_df,
+                                                    x_col='file_paths',
+                                                    y_col='target_names',
+                                                    target_size=(IMAGE_SIZE, IMAGE_SIZE),
+                                                    class_mode='categorical',
+                                                    shuffle=True)
+
+    validation_flow = validation_generator.flow_from_dataframe(dataframe=validation_df,
+                                                    x_col='file_paths',
+                                                    y_col='target_names',
+                                                    target_size=(IMAGE_SIZE, IMAGE_SIZE),
+                                                    class_mode='categorical')
+
+    test_flow = test_generator.flow_from_dataframe(dataframe=test_df,
+                                                    x_col='file_paths',
+                                                    y_col='target_names',
+                                                    target_size=(IMAGE_SIZE, IMAGE_SIZE),
+                                                    class_mode='categorical')
+
+    print(train_flow.class_indices)
+    print(validation_flow.class_indices)
+    print(test_flow.class_indices)
+
+    ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # 이미지 pixel 그래프 확인
+
+    import cv2
+    import matplotlib.pyplot as plt
+
+    image = cv2.cvtColor(cv2.imread(train_df.file_paths.iloc[10]), cv2.COLOR_BGR2RGB)
+    plt.imshow(image)
+    plt.show()
+
+---
+
+    scaled_image_tf = preprocessing_scaling(image, mode='tf')
+    scaled_image_torch = preprocessing_scaling(image, mode='torch')
+
+---
+
+    def show_pixel_histogram(image):
+        fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+        titles = ['Red', 'Green', 'Blue']
+        for i in range(3):
+            axs[i].hist(image[:, :, i].flatten(), bins=100, alpha=0.5)
+            title_str = titles[i]
+            axs[i].set(title=title_str)
+
+    show_pixel_histogram(scaled_image_tf)
+    show_pixel_histogram(scaled_image_torch)
 
 </details>
 </div>
