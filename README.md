@@ -636,6 +636,27 @@
 -   Pretrained Model은 주로 tf(tensorflow)와 torch 프레임워크 방식을 사용한다.
 -   tf는 -1 ~ 1, torch는 z-score 변환하는 것이 각 프레임워크의 전통이다.
 
+### sequence (데이터셋 재정의)
+
+-   python 의 매직메소드 특성을 이용하여 데이터의 효율적인 배치를 위해 사용하는 방식입니다.
+    > 데이터의 효율성, 병렬 처리, 데이터증강, 커스터마이즈를 이용하게 위해 사용된다.  
+    > (각 배치 단위로 데이터를 로드하여 처리하는 방식)
+-   15번 코드 확인.
+
+---
+
+### fine_tuning (미세조정)
+
+-   ImageNet으로 학습된 Pretrained Model을 다른 목적 또는 다른 용도로 활용할 때 feature Extractor의 Weight를 제어하기 위한 기법이다.
+-   특정 Layer들을 Freeze시켜서 학습에서 제외시키고 Learning Rate를 점차 감소시켜 적용한다.
+-   ImageNet과 유사한 데이터 세트이거나 개별 클래스 별로 데이터 건수가 작을 경우 사용을 권장한다.
+    Fine Tuning이 언제나 모델의 좋은 성능을 가져오는 것은 아니기 때문에 적절히 사용할 수 있어야 한다. (학습시간의 효율을 사용하기 위해 권장된다.)
+-   먼저 Classification Layers에만 학습을 시킨 뒤 전체에 학습을 시키는 순서로 진행하게 되며, 이를 위해 fit()을 최소 2번 사용한다.
+-   층별로 Freeze 혹은 UnFreeze 결정을 위해 미세 조정을 진행할 때, 학습률이 높으면 이전 지식을 잃을 수 있기 때문에 작은 학습률을 사용한다.
+-   유사도와 데이터 개수에 따라 1~4 분면 사이에 layer freeze를 조정하여 학습 시간의 효율을 높일 수 있다.
+    > 1,4 분면이 유사도가 높기 때문에 분류기 + 낮은 층 레이어 훈련 / 2,3 분면은 유사도가 낮고 데이터 사이즈의 크기에 따라 전체 재훈련 또는 높은 층 unfreeze하여 훈련을 진행한다.
+-   최초 사전 훈련 모델의 layer 층을 확인하고 freeze 정도를 결정한다. (model.layers)
+
 ## <div id="Code Advanced">Code Advanced</div>
 
 <details>
@@ -1818,6 +1839,252 @@
 
     show_pixel_histogram(scaled_image_tf)
     show_pixel_histogram(scaled_image_torch)
+
+</details>
+
+<details>
+    <summary>15. Dataset 재정의</summary>
+
+    import numpy
+    import cv2
+    from tensorflow.keras.utils import Sequence
+    from sklearn.utils import shuffle
+
+    BATCH_SIZE = 64
+    IMAGE_SIZE = 64
+
+    class Dataset(Sequence):
+        def __init__(self, file_paths, targets, batch_size=BATCH_SIZE, aug=None, shuffle=False):
+            self.file_paths = file_paths
+            self.targets = targets
+            self.batch_size = batch_size
+            self.aug = aug
+            self.shuffle = shuffle
+
+            if self.shuffle:
+                # 에포크 종료 시, 객체 생성 및 데이터 섞기
+                # 메모리 이슈가 있기 때문에 재정의 필요 해당 메소드는 아래쪽에서 추가 재정의.
+                self.on_epoch_end()
+
+        # __len__()는 전체 데이터 건수에서 batch_size 단위로 나눈 데이터 수
+        # 예를 들어, 1000개의 데이터를 30 batch_size로 설정하면, 1 batch 당 33.33.. 개이다.
+        # 이 때, 소수점은 무조건 올려서 33 + 1 = 34 개로 설정한다.
+        # 각 배치사이즈를 이용하여 데이터셋을 가져오기 때문에 재정의.
+        def __len__(self):
+            return int(np.ceil(len(self.targets) / self.batch_size))
+
+
+        # batch_size 단위로 이미지 배열과 타켓 데이터들을 가져온 뒤 변환한 값을 리턴한다.
+        # index : 몇번째 배치인지 나타내는 변수 (len에서 정의한 개수의 배치 수)
+        # index: 0 (# 0: batch_size)
+        # index * self.batch_size: (index+1) * self.batch_size
+
+        def __getitem__(self, index):
+            file_paths_batch = self.file_paths[index * self.batch_size: (index + 1) * self.batch_size]
+            targets_batch = self.file_paths[index * self.batch_size: (index + 1) * self.batch_size]
+
+            results_batch = np.zeros((file_paths_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 3))
+
+            # 이미지의 경우 증강을 하거나 불러올 때 1개씩 처리되기 때문에 반복을 통해 이미지 변환을 시켜준다
+            for i in range(file_paths_batch.shape[0]):
+                image = cv2.cvtColor(cv2.imread(file_paths_batch[i]), cv2.COLOR_BGR2RGB)
+                image = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE))
+
+                if self.aug is not None:
+                    image = self.aug(image=image)['image']
+
+                results_batch[i] = image
+
+            return results_batch, targets_batch
+
+
+        # 메모리 이슈가 있기 때문에 직접 재정의
+        # (file, target) 이 한쌍이 묶여서 섞여야함
+        def on_epoch_end(self):
+            if self.shuffle:
+                self.file_paths, self.targets = shuffle(self.file_paths, self.targets)
+
+---
+
+        # Dataset을 재정의 했을 때 실제로 사용하는 방법
+        import albumentations as A
+        from tensorflow.keras.applications.xception import preprocess_input as xception_preprocess_input
+
+        train_file_paths = train_df['file_paths'].values
+        # train_targets = train_df['targets'].values # SparseCategoricalCrossEntropy
+        train_targets = pd.get_dummies(train_df['targets']).values # CategoricalCrossEntropy
+
+        validation_file_paths = validation_df['file_paths'].values
+        # validation_targets = validation_df['targets'].values # SparseCategoricalCrossEntropy
+        validation_targets = pd.get_dummies(validation_df['targets']).values # CategoricalCrossEntropy
+
+        test_file_paths = test_df['file_paths'].values
+        # test_targets = test_df['targets'].values # SparseCategoricalCrossEntropy
+        test_targets = pd.get_dummies(test_df['targets']).values # CategoricalCrossEntropy
+
+        aug = A.Compose([
+            A.ShiftScaleRotate(p=0.5),
+            A.HorizontalFlip(p=0.5),
+            A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0, p=0.5)
+        ])
+
+        train_dataset = Dataset(train_file_paths,
+                                train_targets,
+                                batch_size=BATCH_SIZE,
+                                aug=aug,
+                                preprocess=xception_preprocess_input,
+                                shuffle=True)
+
+        validation_dataset = Dataset(validation_file_paths,
+                                validation_targets,
+                                batch_size=BATCH_SIZE,
+                                preprocess=xception_preprocess_input)
+
+        test_dataset = Dataset(test_file_paths,
+                                test_targets,
+                                batch_size=BATCH_SIZE,
+                                preprocess=xception_preprocess_input)
+
+</details>
+
+<details>
+    <summary>16. fune_tuning (미세조정)</summary>
+    # 최초 사전 훈련 모델의 layer 층을 파악한다
+    from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras.losses import CategoricalCrossentropy, SparseCategoricalCrossentropy
+
+    model = create_model(model_name='mobileneet', verbose=True)
+    # model.compile(optimizer=Adam(), loss=SparseCategoricalCrossentropy(), metrics=['acc'])
+    model.compile(optimizer=Adam(), loss=CategoricalCrossentropy(), metrics=['acc'])
+
+    model.layers
+
+---
+
+    # 각 모델마다 layer 층이 다를 수 있기 때문에 최초 분류기의 깊이를 확인 후 해당 부분만 unfreeze 후 훈련 진행
+
+    from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras.losses import CategoricalCrossentropy, SparseCategoricalCrossentropy
+    from tensorflow.keras.layers import Layer
+    from tensorflow.keras import layers
+
+    IMAGE_SIZE = 244
+    BATCH_SIZE = 64
+
+    def fine_tune(datas, model_name, aug, preprocess):
+        FIRST_EPOCHS = 10
+        SECOND_EPOCHS = 10
+
+        train_file_paths, train_targets, \
+        validation_file_paths, validation_targets, \
+        test_file_paths, test_targets = datas
+
+        train_dataset = Dataset(train_file_paths,
+                            train_targets,
+                            batch_size=BATCH_SIZE,
+                            aug=aug,
+                            preprocess=preprocess,
+                            shuffle=True)
+
+        validation_dataset = Dataset(validation_file_paths,
+                                validation_targets,
+                                batch_size=BATCH_SIZE,
+                                preprocess=preprocess)
+
+        model = create_model(model_name=model_name, verbose=True)
+        model.compile(optimizer=Adam(), loss=CategoricalCrossentropy(), metrics=['acc'])
+
+        # 콜백 정의
+        mcp_cb = ModelCheckpoint(
+            filepath="./callback_files/project03/weights.{epoch:03d}-{val_loss:.4f}-{acc:.4f}.weights.h5",
+            monitor='val_loss',
+            save_best_only=False,
+            save_weights_only=True,
+            mode='min'
+        )
+
+        rlr_cb = ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=5,
+            min_lr=1e-6,
+            mode='min',
+            verbose=1
+        )
+
+        ely_cb = EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            mode='min',
+            verbose=1
+        )
+
+        # feature extractor Layer들을 전부 freeze
+        # 단, mobilenet일 때 -5 이기 때문에 각 모델별로 상수를 미리 지정해서 사용할 것!
+        # 예시) {mobilenet: -?, xception: -?} 이런식으로 정의 해놓고 사용할 것 .
+        for layer in model.layers[:-5]:
+            layer.trainable = False
+
+        model.fit(train_dataset,
+                batch_size=BATCH_SIZE,
+                epochs=FIRST_EPOCHS,
+                validation_data=validation_dataset)
+
+        # 배치 정규화만 freeze 진행
+        for layer in model.layers:
+            if not isinstance(layer, layers.BatchNormalization):
+                layer.trainable = True
+
+        # 부분 freeze 진행 (필요할 때 1,3 사분면 진행 시 실제로 개수를 세서 위부터 freeze 를 작성해줘야 한다.)
+        # 이 부분에 작성이 필요함
+        # for layer in model.layers[:85]:
+        #     layer.trainable = False
+
+        model.compile(optimizer=Adam(), loss=CategoricalCrossentropy(), metrics=['acc'])
+        history = model.fit(train_dataset,
+                batch_size=BATCH_SIZE,
+                epochs=SECOND_EPOCHS,
+                validation_data=validation_dataset)
+
+        return model, history
+
+---
+
+    # fine_tune 함수 사용
+    from tensorflow.keras.applications.mobilenet import preprocess_input as mobilenet_preprocess_input
+
+    train_file_paths = train_df['file_paths'].values
+    train_targets = pd.get_dummies(train_df['targets']).values # CategoricalCrossEntropy
+
+    validation_file_paths = validation_df['file_paths'].values
+    validation_targets = pd.get_dummies(validation_df['targets']).values # CategoricalCrossEntropy
+
+    test_file_paths = test_df['file_paths'].values
+    test_targets = pd.get_dummies(test_df['targets']).values # CategoricalCrossEntropy
+
+    aug = A.Compose([
+        A.ShiftScaleRotate(p=0.5),
+        A.HorizontalFlip(p=0.5),
+        A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0, p=0.5)
+    ])
+
+    model, history = fine_tune((train_file_paths, train_targets,
+            validation_file_paths, validation_targets,
+            test_file_paths, test_targets),
+            'mobilenet',
+            aug,
+            mobilenet_preprocess_input)
+
+---
+
+    # freeze 확인하기 및 필요시 어느정도 까지 unfreeze를 진행할 것인지 확인.
+    for i, layer in enumerate(model.layers[:-5]):
+        layer.trainable = False
+        print(i + 1, '.', layer.name, 'trainable:', layer.trainable)
+
+    print('\n######### classifier layers ######### ')
+    for layer in model.layers[-5:]:
+        print(layer.name, 'trainable:', layer.trainable)
 
 </details>
 </div>
