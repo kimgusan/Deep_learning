@@ -1949,6 +1949,7 @@
 
 <details>
     <summary>16. fune_tuning (미세조정)</summary>
+    
     # 최초 사전 훈련 모델의 layer 층을 파악한다
     from tensorflow.keras.optimizers import Adam
     from tensorflow.keras.losses import CategoricalCrossentropy, SparseCategoricalCrossentropy
