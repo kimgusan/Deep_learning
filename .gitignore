@@ -32,3 +32,6 @@ callback_files/
 datasets/
 datasets/**
 
+data/
+data/**
+
