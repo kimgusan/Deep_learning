@@ -112,3 +112,5 @@ sh
 .DS_Store
 data_in/
 data_out/
+data_in/**
+data_out/**
