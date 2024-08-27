@@ -111,3 +111,4 @@ venv.bak/
 
 data_in_test/
 sh/
+cnn_predict.csv
