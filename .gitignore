@@ -37,3 +37,6 @@ data/**
 
 gan_images/
 gan_images/**
+
+bert_ckpt/
+bert_ckpt**
