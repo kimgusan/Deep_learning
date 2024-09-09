@@ -117,3 +117,9 @@ data_out/**
 bert_ckpt/
 bert_ckpt/**
 # 대용량 파일은 미리 제거 할 것!
+
+bert-ckpt/
+bert-ckpt/**
+
+gpt_ckpt/
+gpt_ckpt/**
