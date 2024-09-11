@@ -40,3 +40,12 @@ gan_images/**
 
 bert_ckpt/
 bert_ckpt**
+
+bert-ckpt/
+bert-ckpt**
+
+gpt_ckpt/
+gpt_ckpt/**
+
+bert-base-multilingual-cased/
+bert-base-multilingual-cased/**
